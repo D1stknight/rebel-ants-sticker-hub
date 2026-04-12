@@ -11,8 +11,32 @@ interface AssetModalProps {
   onClose: () => void
 }
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  // Method 1: Modern clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {}
+  }
+  // Method 2: execCommand fallback (works on Android)
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    const success = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    if (success) return true
+  } catch {}
+  return false
+}
+
 export default function AssetModal({ asset, onClose }: AssetModalProps) {
   const [downloading, setDownloading] = useState(false)
+  const [showUrl, setShowUrl] = useState(false)
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -36,11 +60,14 @@ export default function AssetModal({ asset, onClose }: AssetModalProps) {
   }
 
   const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(asset.file_url)
+    const copied = await copyToClipboard(asset.file_url)
+    if (copied) {
       toast.success('Link copied!')
-    } catch {
-      toast.error('Could not copy link')
+      setShowUrl(false)
+    } else {
+      // Last resort — show the URL so user can long-press copy
+      setShowUrl(true)
+      toast('Long-press the link below to copy', { icon: '📋' })
     }
   }
 
@@ -72,7 +99,6 @@ export default function AssetModal({ asset, onClose }: AssetModalProps) {
           background: 'var(--bg-surface)', padding: 24, minHeight: 240,
           position: 'relative',
         }}>
-          {/* Checkerboard for transparency */}
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: 'linear-gradient(45deg, #1a1a2e 25%, transparent 25%), linear-gradient(-45deg, #1a1a2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a2e 75%), linear-gradient(-45deg, transparent 75%, #1a1a2e 75%)',
@@ -104,6 +130,20 @@ export default function AssetModal({ asset, onClose }: AssetModalProps) {
           </div>
         )}
 
+        {/* Fallback URL for Android */}
+        {showUrl && (
+          <div style={{ padding: '0 20px 8px' }}>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 4px' }}>Long-press to copy:</p>
+            <div style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border)',
+              borderRadius: 8, padding: '8px 12px', fontSize: 11,
+              color: 'var(--accent-blue)', wordBreak: 'break-all', userSelect: 'all',
+            }}>
+              {asset.file_url}
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div style={{ padding: '12px 20px 20px', display: 'flex', gap: 10 }}>
           <button
@@ -121,7 +161,7 @@ export default function AssetModal({ asset, onClose }: AssetModalProps) {
             {downloading ? 'Downloading…' : 'Download'}
           </button>
 
-          <button onClick={handleCopyLink} className="btn-secondary" style={{ minWidth: 44, padding: '12px 14px' }}>
+          <button onClick={handleCopyLink} className="btn-secondary" style={{ minWidth: 44, padding: '12px 14px' }} title="Copy link">
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M10 13H13a3 3 0 000-6H10M6 3H3a3 3 0 000 6h3M6 10h6" strokeLinecap="round"/>
             </svg>
