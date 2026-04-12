@@ -32,7 +32,7 @@ export default async function PackPage({ params }: Props) {
   const pack = await getPackBySlug(slug)
   if (!pack) notFound()
 
-  const assets = pack.items?.map((item: { asset: unknown }) => item.asset).filter(Boolean) ?? []
+  const assets = pack.items?.map((item) => item.asset).filter(Boolean) ?? []
 
   return (
     <div style={{ paddingTop: 32, paddingBottom: 64 }}>
