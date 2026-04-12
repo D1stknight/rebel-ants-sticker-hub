@@ -5,10 +5,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Rebel Ants Sticker & GIF Hub',
+    default: 'Rebel Ants GIFs & Stickers',
     template: '%s | Rebel Ants',
   },
-  description: 'Download premium Rebel Ants sticker packs and GIFs for iMessage, Telegram, Discord, and more.',
+  description: 'Download official Rebel Ants sticker packs and GIFs for iMessage, Telegram, Discord, and more.',
   keywords: ['rebel ants', 'stickers', 'gifs', 'nft stickers', 'animated stickers'],
   authors: [{ name: 'Rebel Ants' }],
   manifest: '/manifest.json',
@@ -19,14 +19,23 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    title: 'Rebel Ants Sticker & GIF Hub',
-    description: 'Download premium Rebel Ants sticker packs and GIFs.',
+    title: 'Rebel Ants GIFs & Stickers',
+    description: 'Download official Rebel Ants sticker packs and GIFs for iMessage, Telegram, Discord & more.',
     siteName: 'Rebel Ants Hub',
+    images: [
+      {
+        url: 'https://fdigfsdvrhtlxkorxlte.supabase.co/storage/v1/object/public/covers/Header.PNG',
+        width: 1280,
+        height: 720,
+        alt: 'Rebel Ants GIFs & Stickers',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Rebel Ants Sticker & GIF Hub',
-    description: 'Download premium Rebel Ants sticker packs and GIFs.',
+    title: 'Rebel Ants GIFs & Stickers',
+    description: 'Download official Rebel Ants sticker packs and GIFs.',
+    images: ['https://fdigfsdvrhtlxkorxlte.supabase.co/storage/v1/object/public/covers/Header.PNG'],
   },
   icons: {
     icon: [
