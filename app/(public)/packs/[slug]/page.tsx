@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { getPackBySlug, getPacks } from '@/lib/db'
+import { getPackBySlug } from '@/lib/db'
 import AssetCard from '@/components/ui/AssetCard'
 import DownloadPackButton from '@/components/ui/DownloadPackButton'
 import type { Metadata } from 'next'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -22,11 +22,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export async function generateStaticParams() {
-  const packs = await getPacks({ limit: 100 })
-  return packs.map(p => ({ slug: p.slug }))
-}
-
 export default async function PackPage({ params }: Props) {
   const { slug } = await params
   const pack = await getPackBySlug(slug)
@@ -36,12 +31,10 @@ export default async function PackPage({ params }: Props) {
 
   return (
     <div style={{ paddingTop: 32, paddingBottom: 64 }}>
-      {/* Pack header */}
       <div style={{
         display: 'flex', gap: 24, flexWrap: 'wrap',
         alignItems: 'flex-start', marginBottom: 40,
       }}>
-        {/* Cover */}
         <div style={{
           width: 140, height: 140, flexShrink: 0,
           borderRadius: 20, overflow: 'hidden',
@@ -58,7 +51,6 @@ export default async function PackPage({ params }: Props) {
           )}
         </div>
 
-        {/* Info */}
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             <span className={`badge ${pack.type === 'gif' ? 'badge-pink' : 'badge-purple'}`}>
@@ -67,30 +59,23 @@ export default async function PackPage({ params }: Props) {
             {pack.featured && <span className="badge badge-blue">⭐ Featured</span>}
             {pack.category && <span className="badge badge-green">{pack.category.name}</span>}
           </div>
-
           <h1 style={{ margin: '0 0 10px', fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {pack.title}
           </h1>
-
           {pack.description && (
             <p style={{ margin: '0 0 16px', color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 15 }}>
               {pack.description}
             </p>
           )}
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               {assets.length} item{assets.length !== 1 ? 's' : ''}
             </span>
-
-            {pack.zip_file_url && (
-              <DownloadPackButton pack={pack} />
-            )}
+            {pack.zip_file_url && <DownloadPackButton pack={pack} />}
           </div>
         </div>
       </div>
 
-      {/* Assets grid */}
       {assets.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
@@ -98,9 +83,7 @@ export default async function PackPage({ params }: Props) {
         </div>
       ) : (
         <>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px' }}>
-            All Items
-          </h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px' }}>All Items</h2>
           <div className="asset-grid">
             {assets.map((asset: unknown) => {
               const a = asset as Parameters<typeof AssetCard>[0]['asset']
