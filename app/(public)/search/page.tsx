@@ -1,174 +1,181 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useDebouncedCallback } from 'use-debounce'
 import AssetCard from '@/components/ui/AssetCard'
 import PackCard from '@/components/ui/PackCard'
-import FilterBar from '@/components/ui/FilterBar'
 import SkeletonGrid from '@/components/ui/SkeletonGrid'
 import type { Asset, Pack, Category, AssetType } from '@/types'
 
-type Tab = 'packs' | 'items'
+type Tab = 'all' | 'packs'
 
 export default function SearchPage() {
   const [query, setQuery] = useState('')
-  const [tab, setTab] = useState<Tab>('packs')
+  const [tab, setTab] = useState<Tab>('all')
   const [typeFilter, setTypeFilter] = useState<AssetType | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [assets, setAssets] = useState<Asset[]>([])
-  const [packs, setPacks] = useState<Pack[]>([])
+  const [allAssets, setAllAssets] = useState<Asset[]>([])
+  const [allPacks, setAllPacks] = useState<Pack[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
+  const [loading, setLoading] = useState(true)
 
+  // Load everything once on mount
   useEffect(() => {
-    createClient().from('categories').select('*').order('name')
-      .then(({ data }) => setCategories((data as Category[]) ?? []))
+    const supabase = createClient()
+    Promise.all([
+      supabase.from('assets').select('*, tags:asset_tags(*), category:categories(*)').eq('is_published', true).order('created_at', { ascending: false }),
+      supabase.from('packs').select('*, category:categories(*), item_count:pack_items(count)').eq('is_published', true).order('created_at', { ascending: false }),
+      supabase.from('categories').select('*').order('name'),
+    ]).then(([assetsRes, packsRes, catsRes]) => {
+      setAllAssets((assetsRes.data as Asset[]) ?? [])
+      setAllPacks((packsRes.data as Pack[]) ?? [])
+      setCategories((catsRes.data as Category[]) ?? [])
+      setLoading(false)
+    })
   }, [])
 
-  const runSearch = useDebouncedCallback(async (q: string, type: AssetType | 'all', cat: string) => {
-    setLoading(true)
-    setSearched(true)
-    const supabase = createClient()
+  // Filter client-side — searches title AND tags
+  const q = query.toLowerCase().trim()
 
-    const [assetsRes, packsRes] = await Promise.all([
-      supabase
-        .from('assets')
-        .select('*, tags:asset_tags(*), category:categories(*)')
-        .eq('is_published', true)
-        .ilike('title', `%${q}%`)
-        .order('created_at', { ascending: false })
-        .limit(80),
-      supabase
-        .from('packs')
-        .select('*, category:categories(*), item_count:pack_items(count)')
-        .eq('is_published', true)
-        .ilike('title', `%${q}%`)
-        .order('created_at', { ascending: false })
-        .limit(40),
-    ])
+  const filteredAssets = allAssets.filter(a => {
+    const matchType = typeFilter === 'all' || a.type === typeFilter
+    const matchCat = !categoryFilter || a.category?.slug === categoryFilter
+    const matchQ = !q ||
+      a.title.toLowerCase().includes(q) ||
+      a.tags?.some(t => t.tag.toLowerCase().includes(q)) ||
+      a.description?.toLowerCase().includes(q) ||
+      a.category?.name?.toLowerCase().includes(q)
+    return matchType && matchCat && matchQ
+  })
 
-    let a = (assetsRes.data as Asset[]) ?? []
-    let p = (packsRes.data as Pack[]) ?? []
+  const filteredPacks = allPacks.filter(p => {
+    const matchType = typeFilter === 'all' || p.type === typeFilter
+    const matchCat = !categoryFilter || p.category?.slug === categoryFilter
+    const matchQ = !q ||
+      p.title.toLowerCase().includes(q) ||
+      p.description?.toLowerCase().includes(q) ||
+      p.category?.name?.toLowerCase().includes(q)
+    return matchType && matchCat && matchQ
+  })
 
-    if (type !== 'all') {
-      a = a.filter(x => x.type === type)
-      p = p.filter(x => x.type === type)
-    }
-    if (cat) {
-      a = a.filter(x => x.category?.slug === cat)
-      p = p.filter(x => x.category?.slug === cat)
-    }
-
-    setAssets(a)
-    setPacks(p)
-    setLoading(false)
-  }, 350)
-
-  const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    setQuery(val)
-    if (val.length >= 1) runSearch(val, typeFilter, categoryFilter)
-  }, [runSearch, typeFilter, categoryFilter])
-
-  const handleTypeChange = (t: AssetType | 'all') => {
-    setTypeFilter(t)
-    if (query) runSearch(query, t, categoryFilter)
-  }
-
-  const handleCatChange = (c: string) => {
-    setCategoryFilter(c)
-    if (query) runSearch(query, typeFilter, c)
-  }
+  const totalResults = filteredAssets.length + filteredPacks.length
 
   return (
     <div style={{ paddingTop: 32, paddingBottom: 64 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 24px', letterSpacing: '-0.02em' }}>
-        🔍 Search
-      </h1>
+      <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 24px', letterSpacing: '-0.02em' }}>🔍 Search</h1>
 
       {/* Search input */}
-      <div style={{ position: 'relative', marginBottom: 20 }}>
+      <div style={{ position: 'relative', marginBottom: 16 }}>
         <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2}
           style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
-          <circle cx="8" cy="8" r="5" />
-          <path d="M16 16l-3.5-3.5" strokeLinecap="round" />
+          <circle cx="8" cy="8" r="5" /><path d="M16 16l-3.5-3.5" strokeLinecap="round" />
         </svg>
         <input
           autoFocus
           type="search"
           className="input"
           style={{ paddingLeft: 46, fontSize: 16, height: 52 }}
-          placeholder="Search packs, stickers, GIFs…"
+          placeholder="Search by name, tag, category…"
           value={query}
-          onChange={handleInput}
+          onChange={e => setQuery(e.target.value)}
         />
       </div>
 
       {/* Filters */}
-      <div style={{ overflowX: 'auto', paddingBottom: 4, marginBottom: 24 }}>
-        <FilterBar
-          typeFilter={typeFilter}
-          onTypeChange={handleTypeChange}
-          categories={categories}
-          categoryFilter={categoryFilter}
-          onCategoryChange={handleCatChange}
-        />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+        {(['all', 'sticker', 'gif'] as const).map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)} style={{
+            padding: '6px 14px', borderRadius: 999, fontSize: 13, cursor: 'pointer', minHeight: 36,
+            border: `1px solid ${typeFilter === t ? 'var(--accent-purple)' : 'var(--border)'}`,
+            background: typeFilter === t ? 'rgba(139,92,246,0.15)' : 'var(--bg-card)',
+            color: typeFilter === t ? 'var(--accent-purple)' : 'var(--text-secondary)',
+            fontWeight: typeFilter === t ? 600 : 400,
+          }}>
+            {t === 'all' ? '🐜 All' : t === 'gif' ? '✨ GIFs' : '🖼️ Stickers'}
+          </button>
+        ))}
+        {categories.length > 0 && <>
+          <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch' }} />
+          {categories.map(cat => (
+            <button key={cat.id} onClick={() => setCategoryFilter(categoryFilter === cat.slug ? '' : cat.slug)} style={{
+              padding: '6px 14px', borderRadius: 999, fontSize: 13, cursor: 'pointer', minHeight: 36,
+              border: `1px solid ${categoryFilter === cat.slug ? 'var(--accent-blue)' : 'var(--border)'}`,
+              background: categoryFilter === cat.slug ? 'rgba(59,130,246,0.15)' : 'var(--bg-card)',
+              color: categoryFilter === cat.slug ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            }}>{cat.name}</button>
+          ))}
+        </>}
       </div>
 
-      {/* Tabs */}
-      {searched && !loading && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-          {([['packs', `Packs (${packs.length})`], ['items', `Items (${assets.length})`]] as const).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer',
-              color: tab === t ? 'var(--accent-purple)' : 'var(--text-secondary)',
-              fontWeight: tab === t ? 700 : 400, fontSize: 14,
-              borderBottom: `2px solid ${tab === t ? 'var(--accent-purple)' : 'transparent'}`,
-              marginBottom: -1, transition: 'color 0.15s',
-            }}>
-              {label}
-            </button>
-          ))}
-        </div>
+      {loading ? (
+        <SkeletonGrid count={8} type="asset" />
+      ) : (
+        <>
+          {/* Results count */}
+          {q && (
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
+              {totalResults === 0 ? `No results for "${query}"` : `${totalResults} result${totalResults !== 1 ? 's' : ''} for "${query}"`}
+            </p>
+          )}
+
+          {/* Empty state */}
+          {totalResults === 0 && (
+            <div style={{ textAlign: 'center', padding: '80px 0' }}>
+              <div style={{ fontSize: 56, marginBottom: 16 }}>{q ? '😔' : '🐜'}</div>
+              <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                {q ? `Nothing found for "${query}"` : 'Start typing to search…'}
+              </p>
+              {q && <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Try a different keyword or browse the tabs above.</p>}
+            </div>
+          )}
+
+          {/* Tabs */}
+          {totalResults > 0 && (
+            <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+              {([['all', `All (${totalResults})`], ['packs', `Packs (${filteredPacks.length})`]] as const).map(([t, label]) => (
+                <button key={t} onClick={() => setTab(t)} style={{
+                  padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer',
+                  color: tab === t ? 'var(--accent-purple)' : 'var(--text-secondary)',
+                  fontWeight: tab === t ? 700 : 400, fontSize: 14,
+                  borderBottom: `2px solid ${tab === t ? 'var(--accent-purple)' : 'transparent'}`,
+                  marginBottom: -1, transition: 'color 0.15s',
+                }}>{label}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Results */}
+          {tab === 'packs' && filteredPacks.length > 0 && (
+            <div className="pack-grid">
+              {filteredPacks.map(p => <PackCard key={p.id} pack={p} />)}
+            </div>
+          )}
+
+          {tab === 'all' && totalResults > 0 && (
+            <>
+              {filteredPacks.length > 0 && (
+                <section style={{ marginBottom: 40 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px' }}>📦 Packs</h2>
+                  <div className="pack-grid">
+                    {filteredPacks.map(p => <PackCard key={p.id} pack={p} />)}
+                  </div>
+                </section>
+              )}
+              {filteredAssets.length > 0 && (
+                <section>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px' }}>
+                    🐜 Items <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 13 }}>{filteredAssets.length}</span>
+                  </h2>
+                  <div className="asset-grid">
+                    {filteredAssets.map(a => <AssetCard key={a.id} asset={a} />)}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </>
       )}
-
-      {/* Results */}
-      {loading && <SkeletonGrid count={8} type={tab === 'packs' ? 'pack' : 'asset'} />}
-
-      {!loading && !searched && (
-        <div style={{ textAlign: 'center', padding: '80px 0' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🐜</div>
-          <p style={{ color: 'var(--text-secondary)' }}>Start typing to search the colony…</p>
-        </div>
-      )}
-
-      {!loading && searched && tab === 'packs' && (
-        packs.length === 0 ? <NoResults term={query} /> : (
-          <div className="pack-grid">
-            {packs.map(p => <PackCard key={p.id} pack={p} />)}
-          </div>
-        )
-      )}
-
-      {!loading && searched && tab === 'items' && (
-        assets.length === 0 ? <NoResults term={query} /> : (
-          <div className="asset-grid">
-            {assets.map(a => <AssetCard key={a.id} asset={a} />)}
-          </div>
-        )
-      )}
-    </div>
-  )
-}
-
-function NoResults({ term }: { term: string }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '60px 0' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
-      <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>No results for "{term}"</p>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Try different keywords or browse the categories.</p>
     </div>
   )
 }
