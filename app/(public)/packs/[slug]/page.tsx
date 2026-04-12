@@ -16,9 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: pack.title,
     description: pack.description ?? `Download the ${pack.title} pack from Rebel Ants.`,
-    openGraph: {
-      images: pack.cover_image_url ? [pack.cover_image_url] : [],
-    },
+    openGraph: { images: pack.cover_image_url ? [pack.cover_image_url] : [] },
   }
 }
 
@@ -29,25 +27,17 @@ export default async function PackPage({ params }: Props) {
 
   const assets = pack.items?.map((item) => item.asset).filter(Boolean) ?? []
 
+  // Pass the full pack with items to the download button
+  const packWithItems = { ...pack, items: pack.items ?? [] }
+
   return (
     <div style={{ paddingTop: 32, paddingBottom: 64 }}>
-      <div style={{
-        display: 'flex', gap: 24, flexWrap: 'wrap',
-        alignItems: 'flex-start', marginBottom: 40,
-      }}>
-        <div style={{
-          width: 140, height: 140, flexShrink: 0,
-          borderRadius: 20, overflow: 'hidden',
-          border: '1px solid var(--border)',
-          background: 'var(--bg-surface)',
-          position: 'relative',
-        }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 40 }}>
+        <div style={{ width: 140, height: 140, flexShrink: 0, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-surface)', position: 'relative' }}>
           {pack.cover_image_url ? (
             <Image src={pack.cover_image_url} alt={pack.title} fill style={{ objectFit: 'cover' }} />
           ) : (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52 }}>
-              🐜
-            </div>
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52 }}>🐜</div>
           )}
         </div>
 
@@ -59,19 +49,22 @@ export default async function PackPage({ params }: Props) {
             {pack.featured && <span className="badge badge-blue">⭐ Featured</span>}
             {pack.category && <span className="badge badge-green">{pack.category.name}</span>}
           </div>
+
           <h1 style={{ margin: '0 0 10px', fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 900, letterSpacing: '-0.02em' }}>
             {pack.title}
           </h1>
+
           {pack.description && (
             <p style={{ margin: '0 0 16px', color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 15 }}>
               {pack.description}
             </p>
           )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               {assets.length} item{assets.length !== 1 ? 's' : ''}
             </span>
-            {pack.zip_file_url && <DownloadPackButton pack={pack} />}
+            <DownloadPackButton pack={packWithItems as any} />
           </div>
         </div>
       </div>
