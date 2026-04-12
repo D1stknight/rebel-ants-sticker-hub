@@ -26,9 +26,24 @@ export default function Footer() {
               </Link>
             ))}
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-            © {new Date().getFullYear()} Rebel Ants. All rights reserved.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              © {new Date().getFullYear()} Rebel Ants. All rights reserved.
+            </p>
+            <Link
+              href="/admin"
+              style={{
+                color: 'transparent',
+                fontSize: 10,
+                userSelect: 'none',
+                opacity: 0.15,
+                textDecoration: 'none',
+              }}
+              title=""
+            >
+              🐜
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
