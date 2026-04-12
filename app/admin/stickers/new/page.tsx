@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import UploadDropzone from '@/components/admin/UploadDropzone'
+import { uploadFileToBucket } from '@/lib/upload'
 import { slugify } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Category } from '@/types'
@@ -23,10 +24,6 @@ export default function NewStickerPage() {
       .then(({ data }) => setCategories((data as Category[]) ?? []))
   }, [])
 
-  const handleTitleChange = (title: string) => {
-    setForm(f => ({ ...f, title, slug: slugify(title) }))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) return toast.error('Please select a file')
@@ -34,15 +31,8 @@ export default function NewStickerPage() {
     setUploading(true)
 
     try {
-      // Upload file
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('bucket', 'stickers')
-      const uploadRes = await fetch('/api/admin/upload', { method: 'POST', body: fd })
-      const { url, error: uploadErr } = await uploadRes.json()
-      if (uploadErr) throw new Error(uploadErr)
+      const url = await uploadFileToBucket('stickers', file)
 
-      // Save to DB
       const supabase = createClient()
       const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean)
 
@@ -60,19 +50,23 @@ export default function NewStickerPage() {
 
       if (error) throw error
 
-      // Insert tags
       if (tags.length > 0) {
         await supabase.from('asset_tags').insert(tags.map(tag => ({ asset_id: asset.id, tag })))
       }
 
       toast.success('Sticker uploaded!')
       router.push('/admin/assets')
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err)
-      toast.error('Upload failed — check console')
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600,
+    color: 'var(--text-secondary)', marginBottom: 8,
   }
 
   return (
@@ -83,7 +77,6 @@ export default function NewStickerPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* File upload */}
         <div className="card-glow" style={{ padding: 20 }}>
           <label style={labelStyle}>PNG File *</label>
           <UploadDropzone
@@ -94,28 +87,23 @@ export default function NewStickerPage() {
           />
         </div>
 
-        {/* Form fields */}
         <div className="card-glow" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={labelStyle}>Title *</label>
-            <input className="input" value={form.title} onChange={e => handleTitleChange(e.target.value)} placeholder="Rebel Ant Salute" required />
+            <input className="input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value, slug: slugify(e.target.value) }))} placeholder="Rebel Ant Salute" required />
           </div>
-
           <div>
             <label style={labelStyle}>Slug</label>
             <input className="input" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="rebel-ant-salute" />
           </div>
-
           <div>
             <label style={labelStyle}>Description</label>
-            <textarea className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description…" rows={3} style={{ resize: 'vertical' }} />
+            <textarea className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description..." rows={3} style={{ resize: 'vertical' }} />
           </div>
-
           <div>
             <label style={labelStyle}>Tags (comma separated)</label>
             <input className="input" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="salute, proud, ant, rebel" />
           </div>
-
           <div>
             <label style={labelStyle}>Category</label>
             <select className="input" value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}>
@@ -123,28 +111,20 @@ export default function NewStickerPage() {
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-
           <div style={{ display: 'flex', gap: 20 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-              <input type="checkbox" checked={form.featured} onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))} />
-              <span>Featured</span>
+              <input type="checkbox" checked={form.featured} onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))} /> Featured
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-              <input type="checkbox" checked={form.is_published} onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} />
-              <span>Published</span>
+              <input type="checkbox" checked={form.is_published} onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} /> Published
             </label>
           </div>
         </div>
 
         <button type="submit" disabled={uploading} className="btn-primary" style={{ justifyContent: 'center', height: 48 }}>
-          {uploading ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Uploading…</> : '🖼️ Upload Sticker'}
+          {uploading ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Uploading...</> : '🖼️ Upload Sticker'}
         </button>
       </form>
     </div>
   )
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 13, fontWeight: 600,
-  color: 'var(--text-secondary)', marginBottom: 8,
 }
