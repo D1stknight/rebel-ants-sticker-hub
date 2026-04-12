@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
 interface Props {
@@ -10,6 +9,7 @@ interface Props {
   fileUrl: string
   thumbnailUrl?: string | null
   assetType: string
+  onDeleted?: () => void
 }
 
 function getStoragePath(url: string) {
@@ -17,9 +17,8 @@ function getStoragePath(url: string) {
   return match ? match[1] : null
 }
 
-export default function DeleteAssetButton({ assetId, fileUrl, thumbnailUrl, assetType }: Props) {
+export default function DeleteAssetButton({ assetId, fileUrl, thumbnailUrl, assetType, onDeleted }: Props) {
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   const handleDelete = async () => {
     if (!confirm('Delete this asset permanently? This cannot be undone.')) return
@@ -38,7 +37,7 @@ export default function DeleteAssetButton({ assetId, fileUrl, thumbnailUrl, asse
       const { error } = await supabase.from('assets').delete().eq('id', assetId)
       if (error) throw error
       toast.success('Asset deleted')
-      router.refresh()
+      onDeleted?.()
     } catch (err) {
       console.error(err)
       toast.error('Delete failed')
