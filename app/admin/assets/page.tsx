@@ -8,7 +8,6 @@ import DeleteAssetButton from './DeleteAssetButton'
 import type { Asset } from '@/types'
 
 type Tab = 'all' | 'sticker' | 'gif'
-
 const PAGE_SIZE = 10
 
 export default function AdminAssetsPage() {
@@ -29,8 +28,6 @@ export default function AdminAssetsPage() {
   }
 
   useEffect(() => { load() }, [])
-
-  // Reset visible count when tab or search changes
   useEffect(() => { setVisible(PAGE_SIZE) }, [tab, search])
 
   const filtered = assets.filter(a => {
@@ -48,9 +45,21 @@ export default function AdminAssetsPage() {
     gif: assets.filter(a => a.type === 'gif').length,
   }
 
+  const tabStyle = (t: Tab): React.CSSProperties => {
+    const active = tab === t
+    const isGif = t === 'gif'
+    return {
+      padding: '8px 18px', borderRadius: 10, cursor: 'pointer',
+      fontWeight: active ? 700 : 500, fontSize: 13,
+      background: active ? (isGif ? 'rgba(236,72,153,0.15)' : 'rgba(139,92,246,0.15)') : 'var(--bg-card)',
+      color: active ? (isGif ? 'var(--accent-pink)' : 'var(--accent-purple)') : 'var(--text-secondary)',
+      border: active ? `1px solid ${isGif ? 'rgba(236,72,153,0.3)' : 'rgba(139,92,246,0.3)'}` : '1px solid var(--border)',
+      transition: 'all 0.15s',
+    }
+  }
+
   return (
     <div>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 4px' }}>🗂️ All Assets</h1>
@@ -62,55 +71,29 @@ export default function AdminAssetsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {(['all', 'sticker', 'gif'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: '8px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              fontWeight: tab === t ? 700 : 500, fontSize: 13,
-              background: tab === t
-                ? t === 'gif' ? 'rgba(236,72,153,0.15)' : t === 'sticker' ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.15)'
-                : 'var(--bg-card)',
-              color: tab === t
-                ? t === 'gif' ? 'var(--accent-pink)' : 'var(--accent-purple)'
-                : 'var(--text-secondary)',
-              border: `1px solid ${tab === t ? (t === 'gif' ? 'rgba(236,72,153,0.3)' : 'rgba(139,92,246,0.3)') : 'var(--border)'}`,
-              transition: 'all 0.15s',
-            }}
-          >
+          <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>
             {t === 'all' ? `🐜 All (${counts.all})` : t === 'gif' ? `✨ GIFs (${counts.gif})` : `🖼️ Stickers (${counts.sticker})`}
           </button>
         ))}
       </div>
 
-      {/* Search */}
-      <div style={{ position: 'relative', marginBottom: 16 }}>
+      <div style={{ position: 'relative', marginBottom: 14 }}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2}
           style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
           <circle cx="6" cy="6" r="4"/><path d="M12 12l-2.5-2.5" strokeLinecap="round"/>
         </svg>
-        <input
-          className="input"
-          style={{ paddingLeft: 34, fontSize: 13, height: 38 }}
-          placeholder="Filter by name..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <input className="input" style={{ paddingLeft: 34, fontSize: 13, height: 38 }}
+          placeholder="Filter by name..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {/* Results count */}
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
         Showing {shown.length} of {filtered.length} · sorted A–Z
       </p>
 
-      {/* Asset list */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <div className="spinner" style={{ margin: '0 auto' }} />
-        </div>
+        <div style={{ textAlign: 'center', padding: 40 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🗂️</div>
@@ -121,7 +104,6 @@ export default function AdminAssetsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {shown.map(asset => (
               <div key={asset.id} className="card-glow" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
-                {/* Thumbnail */}
                 <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)', flexShrink: 0 }}>
                   {asset.thumbnail_url || asset.file_url ? (
                     <img src={asset.thumbnail_url || asset.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -131,24 +113,14 @@ export default function AdminAssetsPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {asset.title}
-                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.title}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span className={`badge ${asset.type === 'gif' ? 'badge-pink' : 'badge-purple'}`} style={{ fontSize: 10 }}>{asset.type}</span>
                     {(asset as any).category?.name && <span>{(asset as any).category.name}</span>}
-                    {(asset as any).tags?.length > 0 && (
-                      <span style={{ color: 'var(--text-muted)' }}>
-                        {(asset as any).tags.slice(0, 4).map((t: {tag: string}) => `#${t.tag}`).join(' ')}
-                      </span>
-                    )}
+                    {(asset as any).tags?.length > 0 && <span>{(asset as any).tags.slice(0,4).map((t: {tag:string}) => `#${t.tag}`).join(' ')}</span>}
                   </div>
                 </div>
-
-                {/* Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <AssetToggle assetId={asset.id} isPublished={asset.is_published} />
                   <Link href={`/admin/assets/${asset.id}/edit`} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}>Edit</Link>
@@ -157,14 +129,9 @@ export default function AdminAssetsPage() {
               </div>
             ))}
           </div>
-
-          {/* Load more */}
           {hasMore && (
-            <button
-              onClick={() => setVisible(v => v + PAGE_SIZE)}
-              className="btn-secondary"
-              style={{ width: '100%', justifyContent: 'center', marginTop: 16, fontSize: 13 }}
-            >
+            <button onClick={() => setVisible(v => v + PAGE_SIZE)} className="btn-secondary"
+              style={{ width: '100%', justifyContent: 'center', marginTop: 16, fontSize: 13 }}>
               Load more ({filtered.length - visible} remaining)
             </button>
           )}
