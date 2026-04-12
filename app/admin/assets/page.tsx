@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AssetToggle from './AssetToggle'
+import DeleteAssetButton from './DeleteAssetButton'
 
 export default async function AdminAssetsPage() {
   const supabase = await createClient()
@@ -29,52 +30,33 @@ export default async function AdminAssetsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px auto auto auto', gap: 12, padding: '8px 14px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            <span></span>
-            <span>Title</span>
-            <span>Type</span>
-            <span>Category</span>
-            <span>Tags</span>
-            <span>Status</span>
-            <span></span>
-          </div>
-
           {assets.map(asset => (
-            <div key={asset.id} className="card-glow" style={{ display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px auto auto auto', gap: 12, padding: '10px 14px', alignItems: 'center' }}>
+            <div key={asset.id} className="card-glow" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
               {/* Thumbnail */}
               <div style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)', flexShrink: 0 }}>
                 {asset.thumbnail_url || asset.file_url ? (
                   <img src={asset.thumbnail_url || asset.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                ) : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{asset.type === 'gif' ? '✨' : '🖼️'}</div>}
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                    {asset.type === 'gif' ? '✨' : '🖼️'}
+                  </div>
+                )}
               </div>
 
-              <div style={{ overflow: 'hidden' }}>
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>{asset.slug}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  <span className={`badge ${asset.type === 'gif' ? 'badge-pink' : 'badge-purple'}`} style={{ fontSize: 10, marginRight: 6 }}>{asset.type}</span>
+                  {asset.category?.name ?? 'No category'}
+                  {asset.tags?.length > 0 && <span style={{ marginLeft: 6 }}>· {asset.tags.slice(0,3).map((t: {tag: string}) => t.tag).join(', ')}</span>}
+                </div>
               </div>
 
-              <span className={`badge ${asset.type === 'gif' ? 'badge-pink' : 'badge-purple'}`} style={{ fontSize: 10 }}>
-                {asset.type}
-              </span>
-
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {asset.category?.name ?? '—'}
-              </span>
-
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 160 }}>
-                {asset.tags?.slice(0, 3).map((t: { id: string; tag: string }) => (
-                  <span key={t.id} style={{ fontSize: 10, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px', color: 'var(--text-muted)' }}>
-                    {t.tag}
-                  </span>
-                ))}
-              </div>
-
+              {/* Actions */}
               <AssetToggle assetId={asset.id} isPublished={asset.is_published} />
-
-              <Link href={`/admin/assets/${asset.id}/edit`} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}>
-                Edit
-              </Link>
+              <Link href={`/admin/assets/${asset.id}/edit`} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}>Edit</Link>
+              <DeleteAssetButton assetId={asset.id} fileUrl={asset.file_url} thumbnailUrl={asset.thumbnail_url} assetType={asset.type} />
             </div>
           ))}
         </div>
