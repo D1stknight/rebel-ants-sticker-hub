@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { uploadFileToBucket } from '@/lib/upload'
 import toast from 'react-hot-toast'
 import type { Category, Asset, AssetTag } from '@/types'
 
@@ -13,6 +14,11 @@ export default function EditAssetPage() {
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [existingTags, setExistingTags] = useState<AssetTag[]>([])
+  const [asset, setAsset] = useState<Asset | null>(null)
+  const [replacementFile, setReplacementFile] = useState<File | null>(null)
+  const [replacementPreview, setReplacementPreview] = useState<string | null>(null)
+  const [pendingUpload, setPendingUpload] = useState<{ file: File; url: string } | null>(null)
+  const replacementInput = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     title: '', slug: '', description: '', category_id: '',
     tags: '', featured: false, is_published: false,
@@ -27,6 +33,7 @@ export default function EditAssetPage() {
     ]).then(([assetRes, catsRes]) => {
       const asset = assetRes.data as Asset & { tags: AssetTag[] }
       if (asset) {
+        setAsset(asset)
         setExistingTags(asset.tags ?? [])
         setPreview(asset.thumbnail_url ?? asset.file_url)
         setForm({
@@ -44,37 +51,74 @@ export default function EditAssetPage() {
     })
   }, [id])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    const supabase = createClient()
-
-    const { error } = await supabase.from('assets').update({
-      title: form.title,
-      slug: form.slug,
-      description: form.description || null,
-      category_id: form.category_id || null,
-      featured: form.featured,
-      is_published: form.is_published,
-      updated_at: new Date().toISOString(),
-    }).eq('id', id)
-
-    if (error) {
-      toast.error(error.message)
-      setSaving(false)
+  useEffect(() => {
+    if (!replacementFile) {
+      setReplacementPreview(null)
       return
     }
+    const url = URL.createObjectURL(replacementFile)
+    setReplacementPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [replacementFile])
 
-    // Sync tags: delete old, insert new
-    const newTags = form.tags.split(',').map(t => t.trim()).filter(Boolean)
-    await supabase.from('asset_tags').delete().eq('asset_id', id)
-    if (newTags.length > 0) {
-      await supabase.from('asset_tags').insert(newTags.map(tag => ({ asset_id: id, tag })))
+  const handleReplacement = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!['image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      toast.error('Choose a PNG or WebP image up to 10 MB')
+      setReplacementFile(null)
+      setPendingUpload(null)
+      e.target.value = ''
+      return
     }
+    setReplacementFile(file)
+    setPendingUpload(null)
+  }
 
-    toast.success('Asset updated!')
-    router.push('/admin/assets')
-    setSaving(false)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!asset || saving) return
+    setSaving(true)
+    const supabase = createClient()
+    try {
+      let replacementUrl: string | undefined
+      if (replacementFile) {
+        replacementUrl = pendingUpload?.file === replacementFile
+          ? pendingUpload.url
+          : await uploadFileToBucket('stickers', replacementFile)
+        setPendingUpload({ file: replacementFile, url: replacementUrl })
+      }
+      const { error } = await supabase.from('assets').update({
+        title: form.title,
+        slug: form.slug,
+        description: form.description || null,
+        category_id: form.category_id || null,
+        featured: form.featured,
+        is_published: form.is_published,
+        updated_at: new Date().toISOString(),
+        ...(replacementUrl ? { file_url: replacementUrl, thumbnail_url: replacementUrl, preview_url: null } : {}),
+      }).eq('id', id).select('id').single()
+
+      if (error) throw error
+
+      const newTags = [...new Set(form.tags.split(',').map(t => t.trim()).filter(Boolean))]
+      const oldTags = [...new Set(existingTags.map(t => t.tag))]
+      if (JSON.stringify([...newTags].sort()) !== JSON.stringify(oldTags.sort())) {
+        const removed = await supabase.from('asset_tags').delete().eq('asset_id', id)
+        if (removed.error) throw new Error('Asset saved, but tags could not be updated. Please try again.')
+        if (newTags.length > 0) {
+          const inserted = await supabase.from('asset_tags').insert(newTags.map(tag => ({ asset_id: id, tag })))
+          if (inserted.error) throw new Error('Asset saved, but tags could not be updated. Please try again.')
+        }
+      }
+
+      toast.success('Asset updated!')
+      router.push('/admin/assets')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Could not save changes. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const label = (text: string) => (
@@ -96,13 +140,22 @@ export default function EditAssetPage() {
         <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>{form.title}</p>
       </div>
 
-      {preview && (
+      {(replacementPreview || preview) && (
         <div className="card-glow" style={{ padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 140, background: 'var(--bg-surface)' }}>
-          <img src={preview} alt="" style={{ maxWidth: 120, maxHeight: 120, objectFit: 'contain' }} />
+          <img src={replacementPreview || preview || ''} alt={replacementFile ? 'Replacement sticker preview' : form.title} style={{ maxWidth: 120, maxHeight: 120, objectFit: 'contain' }} />
         </div>
       )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {asset?.type === 'sticker' && (
+          <div className="card-glow" style={{ padding: 20 }}>
+            <label htmlFor="replacement-sticker" style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Replace sticker image</label>
+            <input ref={replacementInput} id="replacement-sticker" type="file" accept="image/png,image/webp" onChange={handleReplacement} disabled={saving} aria-describedby="replacement-help" />
+            <p id="replacement-help" style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>Optional PNG or WebP, up to 10 MB. Save Changes updates this sticker in its existing packs. The previous file is kept as a backup. Pack ZIPs and covers can be updated in the pack editor.</p>
+            {replacementFile && <button type="button" className="btn-secondary" disabled={saving} onClick={() => { setReplacementFile(null); setPendingUpload(null); if (replacementInput.current) replacementInput.current.value = '' }}>Keep current image</button>}
+          </div>
+        )}
         <div className="card-glow" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             {label('Title *')}
@@ -155,10 +208,11 @@ export default function EditAssetPage() {
           <button type="submit" disabled={saving} className="btn-primary" style={{ flex: 1, justifyContent: 'center', height: 48 }}>
             {saving ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Saving…</> : '💾 Save Changes'}
           </button>
-          <button type="button" onClick={() => router.back()} className="btn-secondary" style={{ height: 48 }}>
+          <button type="button" disabled={saving} onClick={() => router.back()} className="btn-secondary" style={{ height: 48 }}>
             Cancel
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   )
