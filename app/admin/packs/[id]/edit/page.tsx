@@ -18,6 +18,9 @@ export default function EditPackPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [currentCover, setCurrentCover] = useState<string | null>(null)
+  const [currentZip, setCurrentZip] = useState<string | null>(null)
+  const [zipFile, setZipFile] = useState<File | null>(null)
+  const [uploadedZip, setUploadedZip] = useState<string | null>(null)
   const [form, setForm] = useState({
     title: '', slug: '', description: '',
     type: 'sticker' as 'sticker' | 'gif',
@@ -43,6 +46,7 @@ export default function EditPackPage() {
           is_published: pack.is_published,
         })
         setCurrentCover(pack.cover_image_url)
+        setCurrentZip(pack.zip_file_url)
       }
       setCategories((catsRes.data as Category[]) ?? [])
       const assets = (itemsRes.data ?? []).map((item: any) => item.asset).filter(Boolean)
@@ -65,12 +69,37 @@ export default function EditPackPage() {
     toast.success('Cover selected — click Save to apply')
   }
 
+  const handleZipFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.name.toLowerCase().endsWith('.zip') || file.size > 50 * 1024 * 1024) {
+      e.target.value = ''
+      toast.error('Choose a ZIP file up to 50 MB')
+      return
+    }
+    const signature = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    if (signature[0] !== 0x50 || signature[1] !== 0x4b ||
+        ![[3, 4], [5, 6], [7, 8]].some(([a, b]) => signature[2] === a && signature[3] === b)) {
+      e.target.value = ''
+      toast.error('This file is not a ZIP archive')
+      return
+    }
+    setZipFile(file)
+    setUploadedZip(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
 
     try {
       let coverUrl = currentCover
+      let zipUrl = currentZip
+
+      if (zipFile) {
+        zipUrl = uploadedZip ?? await uploadFileToBucket('zips', zipFile)
+        setUploadedZip(zipUrl)
+      }
 
       // Upload new cover file if selected
       if (coverFile) {
@@ -87,14 +116,15 @@ export default function EditPackPage() {
         featured: form.featured,
         is_published: form.is_published,
         cover_image_url: coverUrl,
+        zip_file_url: zipUrl,
         updated_at: new Date().toISOString(),
-      }).eq('id', id)
+      }).eq('id', id).select('id').single()
 
       if (error) throw error
       toast.success('Pack updated!')
       router.push('/admin/packs')
     } catch (err) {
-      toast.error('Failed to save')
+      toast.error(err instanceof Error ? err.message : 'Failed to save')
       console.error(err)
     } finally {
       setSaving(false)
@@ -118,7 +148,8 @@ export default function EditPackPage() {
         <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>{form.title}</p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <form onSubmit={handleSubmit}>
+        <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Cover image */}
         <div className="card-glow" style={{ padding: 20 }}>
@@ -178,6 +209,16 @@ export default function EditPackPage() {
           )}
         </div>
 
+        <div className="card-glow" style={{ padding: 20 }}>
+          <label htmlFor="zip-replacement" style={L}>Replace pack ZIP</label>
+          {currentZip && <p style={{ fontSize: 13 }}><a href={currentZip} target="_blank" rel="noreferrer">Current pack ZIP</a></p>}
+          <input id="zip-replacement" type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleZipFile} />
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 0 }}>
+            Optional ZIP, up to 50 MB. Save Changes updates the full-pack download. The previous file is kept as a backup. Pack items stay in place.
+          </p>
+          {zipFile && <p style={{ fontSize: 13 }}>Selected: {zipFile.name}</p>}
+        </div>
+
         {/* Pack details */}
         <div className="card-glow" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -228,6 +269,7 @@ export default function EditPackPage() {
           </button>
           <button type="button" onClick={() => router.back()} className="btn-secondary" style={{ height: 48 }}>Cancel</button>
         </div>
+        </fieldset>
       </form>
     </div>
   )
