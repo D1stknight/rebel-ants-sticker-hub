@@ -61,11 +61,17 @@ export default function EditAssetPage() {
     return () => URL.revokeObjectURL(url)
   }, [replacementFile])
 
+  const isGif = asset?.type === 'gif'
+
   const handleReplacement = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!['image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-      toast.error('Choose a PNG or WebP image up to 10 MB')
+    const validType = isGif
+      ? file.type === 'image/gif' && /\.gif$/i.test(file.name)
+      : ['image/png', 'image/webp'].includes(file.type)
+    const maxMB = isGif ? 20 : 10
+    if (!validType || file.size === 0 || file.size > maxMB * 1024 * 1024) {
+      toast.error(isGif ? 'Choose a GIF file up to 20 MB' : 'Choose a PNG or WebP image up to 10 MB')
       setReplacementFile(null)
       setPendingUpload(null)
       e.target.value = ''
@@ -83,9 +89,13 @@ export default function EditAssetPage() {
     try {
       let replacementUrl: string | undefined
       if (replacementFile) {
+        if (isGif) {
+          const header = new TextDecoder().decode(await replacementFile.slice(0, 6).arrayBuffer())
+          if (header !== 'GIF87a' && header !== 'GIF89a') throw new Error('Choose a valid GIF file')
+        }
         replacementUrl = pendingUpload?.file === replacementFile
           ? pendingUpload.url
-          : await uploadFileToBucket('stickers', replacementFile)
+          : await uploadFileToBucket(isGif ? 'gifs' : 'stickers', replacementFile)
         setPendingUpload({ file: replacementFile, url: replacementUrl })
       }
       const { error } = await supabase.from('assets').update({
@@ -96,7 +106,7 @@ export default function EditAssetPage() {
         featured: form.featured,
         is_published: form.is_published,
         updated_at: new Date().toISOString(),
-        ...(replacementUrl ? { file_url: replacementUrl, thumbnail_url: replacementUrl, preview_url: null } : {}),
+        ...(replacementUrl ? { file_url: replacementUrl, thumbnail_url: replacementUrl, preview_url: isGif ? replacementUrl : null } : {}),
       }).eq('id', id).select('id').single()
 
       if (error) throw error
@@ -142,18 +152,18 @@ export default function EditAssetPage() {
 
       {(replacementPreview || preview) && (
         <div className="card-glow" style={{ padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 140, background: 'var(--bg-surface)' }}>
-          <img src={replacementPreview || preview || ''} alt={replacementFile ? 'Replacement sticker preview' : form.title} style={{ maxWidth: 120, maxHeight: 120, objectFit: 'contain' }} />
+          <img src={replacementPreview || preview || ''} alt={replacementFile ? 'Replacement asset preview' : form.title} style={{ maxWidth: 120, maxHeight: 120, objectFit: 'contain' }} />
         </div>
       )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {asset?.type === 'sticker' && (
+        {(asset?.type === 'sticker' || isGif) && (
           <div className="card-glow" style={{ padding: 20 }}>
-            <label htmlFor="replacement-sticker" style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Replace sticker image</label>
-            <input ref={replacementInput} id="replacement-sticker" type="file" accept="image/png,image/webp" onChange={handleReplacement} disabled={saving} aria-describedby="replacement-help" />
-            <p id="replacement-help" style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>Optional PNG or WebP, up to 10 MB. Save Changes updates this sticker in its existing packs. The previous file is kept as a backup. Pack ZIPs and covers can be updated in the pack editor.</p>
-            {replacementFile && <button type="button" className="btn-secondary" disabled={saving} onClick={() => { setReplacementFile(null); setPendingUpload(null); if (replacementInput.current) replacementInput.current.value = '' }}>Keep current image</button>}
+            <label htmlFor="replacement-asset" style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>{isGif ? 'Replace GIF' : 'Replace sticker image'}</label>
+            <input ref={replacementInput} id="replacement-asset" type="file" accept={isGif ? "image/gif,.gif" : "image/png,image/webp"} onChange={handleReplacement} disabled={saving} aria-describedby="replacement-help" />
+            <p id="replacement-help" style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>{isGif ? 'Optional GIF, up to 20 MB.' : 'Optional PNG or WebP, up to 10 MB.'} Save Changes updates this {isGif ? 'GIF' : 'sticker'} in its existing packs. The previous file is kept as a backup. Pack ZIPs and covers can be updated in the pack editor.</p>
+            {replacementFile && <button type="button" className="btn-secondary" disabled={saving} onClick={() => { setReplacementFile(null); setPendingUpload(null); if (replacementInput.current) replacementInput.current.value = '' }}>{isGif ? 'Keep current GIF' : 'Keep current image'}</button>}
           </div>
         )}
         <div className="card-glow" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
