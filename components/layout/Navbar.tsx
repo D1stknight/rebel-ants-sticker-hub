@@ -3,11 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { RebelAccount } from '@/components/rebel/RebelAccount'
 
 const navLinks = [
   { href: '/stickers', label: 'Stickers', emoji: '🖼️' },
   { href: '/gifs', label: 'GIFs', emoji: '✨' },
   { href: '/search', label: 'Search', emoji: '🔍' },
+  { href: '/badges', label: 'Badges', emoji: '🏅' },
 ]
 
 export default function Navbar() {
@@ -35,6 +37,7 @@ export default function Navbar() {
               </span>
             </Link>
 
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             {/* Desktop nav */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} className="desktop-nav">
               {navLinks.map(link => (
@@ -51,6 +54,9 @@ export default function Navbar() {
                 </Link>
               ))}
             </div>
+
+            {/* Rebel Ants sign-in (desktop + mobile) */}
+            <RebelAccount />
 
             {/* Mobile menu button */}
             <button
@@ -74,6 +80,7 @@ export default function Navbar() {
                 )}
               </svg>
             </button>
+            </div>
           </div>
         </div>
 

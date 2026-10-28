@@ -5,6 +5,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import type { Asset } from '@/types'
 import { trackDownload } from '@/lib/analytics'
+import { showBadgeToasts } from '@/components/rebel/badgeToast'
 
 interface AssetModalProps {
   asset: Asset
@@ -50,8 +51,9 @@ export default function AssetModal({ asset, onClose }: AssetModalProps) {
       a.download = `${asset.slug}.${ext}`
       a.click()
       URL.revokeObjectURL(url)
-      await trackDownload({ assetId: asset.id, type: 'asset' })
+      const badges = await trackDownload({ assetId: asset.id, type: 'asset' })
       toast.success('Downloaded!')
+      showBadgeToasts(badges)
     } catch {
       toast.error('Download failed')
     } finally {
