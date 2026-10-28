@@ -4,6 +4,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import type { Pack } from '@/types'
 import { trackDownload } from '@/lib/analytics'
+import { showBadgeToasts } from '@/components/rebel/badgeToast'
 
 interface Props { pack: Pack }
 
@@ -19,8 +20,9 @@ export default function DownloadPackButton({ pack }: Props) {
         const res = await fetch(pack.zip_file_url)
         const blob = await res.blob()
         triggerDownload(blob, `${pack.slug}.zip`)
-        await trackDownload({ packId: pack.id, type: 'pack' })
+        const badges = await trackDownload({ packId: pack.id, type: 'pack' })
         toast.success('Pack downloaded!')
+        showBadgeToasts(badges)
         return
       }
 
@@ -55,8 +57,9 @@ export default function DownloadPackButton({ pack }: Props) {
       )
 
       triggerDownload(zipBlob, `${pack.slug}.zip`)
-      await trackDownload({ packId: pack.id, type: 'pack' })
+      const badges = await trackDownload({ packId: pack.id, type: 'pack' })
       toast.success('Pack downloaded!')
+      showBadgeToasts(badges)
     } catch (err) {
       console.error(err)
       toast.error('Download failed — try again')

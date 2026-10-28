@@ -260,3 +260,51 @@ body {
 
 /* Toast override */
 .toast-success { background: var(--bg-card) !important; color: var(--text-primary) !important; border: 1px solid var(--border) !important; }
+
+/* ─── Rebel Ants badges (named rebel-badge-* so they never clash with .badge pills) ─── */
+.rebel-badge-acct-btn { padding: 8px 12px; min-height: 40px; font-size: 13px; max-width: 160px; }
+.rebel-badge-acct-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rebel-badge-acct-placeholder { display: inline-block; width: 76px; height: 40px; }
+.rebel-badge-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 200px; z-index: 60;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 6px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5); animation: fadeIn 0.15s ease;
+}
+@media (max-width: 640px) {
+  .rebel-badge-acct-btn { max-width: 120px; padding: 8px 10px; }
+}
+
+.rebel-badge-toast {
+  display: flex; align-items: center; gap: 12px; width: min(360px, calc(100vw - 32px));
+  background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 8px 10px 14px; font-size: 14px; cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.rebel-badge-toast-x {
+  background: transparent; border: none; color: var(--text-secondary); font-size: 20px; line-height: 1;
+  width: 36px; height: 36px; border-radius: 8px; cursor: pointer; flex-shrink: 0;
+}
+.rebel-badge-toast-x:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+.rebel-badge-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 640px) { .rebel-badge-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .rebel-badge-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.rebel-badge-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px 12px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; min-width: 0;
+}
+.rebel-badge-card.earned { border-color: var(--tier); box-shadow: 0 0 18px color-mix(in srgb, var(--tier) 25%, transparent); }
+.rebel-badge-card.locked .rebel-badge-art { filter: grayscale(0.9) brightness(0.55); }
+.rebel-badge-card.locked .rebel-badge-name { color: var(--text-secondary); }
+.rebel-badge-art { width: 72px; height: 72px; object-fit: contain; }
+.rebel-badge-stand-in {
+  width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 28px; color: #080b14;
+  background: radial-gradient(circle at 35% 30%, #fff8 0, transparent 45%), var(--tier);
+  border: 3px solid #f1f5f9; box-shadow: 0 0 0 2px var(--tier);
+}
+.rebel-badge-name { font-weight: 700; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.rebel-badge-tier { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tier); }
+.rebel-badge-rule { font-size: 12px; color: var(--text-secondary); line-height: 1.45; overflow-wrap: anywhere; }
+.rebel-badge-bar { width: 100%; height: 6px; border-radius: 999px; background: var(--bg-surface); overflow: hidden; }
+.rebel-badge-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
