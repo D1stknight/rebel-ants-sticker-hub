@@ -46,6 +46,17 @@ export default function AdminLoginPage() {
           </p>
         </div>
 
+        <div className="card-glow" style={{ padding: 28, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+            The hub admin opens from the Rebel Console, already signed in. Password sign-in is switched off.
+          </p>
+          <a href="https://economy.rebelants.io/admin/open/hub" className="btn-primary" style={{ justifyContent: 'center', height: 48, fontSize: 15, textDecoration: 'none' }}>
+            Open from the Rebel Console
+          </a>
+        </div>
+
+        {/* Emergency only: NEXT_PUBLIC_ALLOW_PASSWORD_LOGIN=true in Vercel brings the password form back. */}
+        {process.env.NEXT_PUBLIC_ALLOW_PASSWORD_LOGIN === 'true' ? (
         <div className="card-glow" style={{ padding: 28 }}>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
@@ -88,6 +99,7 @@ export default function AdminLoginPage() {
             </button>
           </form>
         </div>
+        ) : null}
       </div>
     </div>
   )
