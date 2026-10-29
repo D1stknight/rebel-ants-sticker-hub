@@ -30,19 +30,7 @@ export default function Footer() {
             <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
               © {new Date().getFullYear()} Rebel Ants. All rights reserved.
             </p>
-            <Link
-              href="/admin"
-              style={{
-                color: 'transparent',
-                fontSize: 10,
-                userSelect: 'none',
-                opacity: 0.15,
-                textDecoration: 'none',
-              }}
-              title=""
-            >
-              🐜
-            </Link>
+            {/* (the hidden admin link is gone: the admin is in the Rebel Console) */}
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { isHubAdmin } from './admin-check'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -19,16 +18,8 @@ export async function updateSession(request: NextRequest) {
       },
     }
   )
-  const { data: { user } } = await supabase.auth.getUser()
-  const path = request.nextUrl.pathname
-  const adminArea = path.startsWith('/admin') && !path.startsWith('/admin/login')
-  // signed in is not enough: the account must be on the hub_admins list
-  const admin = user && (adminArea || path === '/admin/login') ? await isHubAdmin(supabase) : false
-  if (adminArea && !admin) {
-    const url = request.nextUrl.clone(); url.pathname = '/admin/login'; if (user) url.search = '?denied=1'; return NextResponse.redirect(url)
-  }
-  if (path === '/admin/login' && admin) {
-    const url = request.nextUrl.clone(); url.pathname = '/admin'; url.search = ''; return NextResponse.redirect(url)
-  }
+  await supabase.auth.getUser() // keeps a signed-in session fresh
+  // The admin lives in the Rebel Console now (Oct 28, 2026).
+  if (request.nextUrl.pathname.startsWith('/admin')) return NextResponse.redirect('https://economy.rebelants.io/admin/hub')
   return supabaseResponse
 }
